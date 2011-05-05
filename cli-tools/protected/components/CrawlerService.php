@@ -32,7 +32,7 @@ class CrawlerService extends CComponent{
            $newlink = array_pop($queue);
            // Filtering
            if (stripos($newlink->URI,$this->baseurl->URI)=== false){
-               Yii::log("[Skip] " . $url . " is out of scope.", CLogger::LEVEL_PROFILE, "HTTP.Verbose");
+               Yii::log($url . " is out of scope.", CLogger::LEVEL_PROFILE, "HTTP.Verbose.Skip");
                continue;
            }
            if (!$newlink->getHeader()){
@@ -54,46 +54,51 @@ class CrawlerService extends CComponent{
                //if ($i == 1){
                    foreach($urls[4] as $url){
                        // Check Protocols
+                       // Check Absolute URL
                        if (preg_match("/(http|https)+:\/\//",$url)){
                            // HTTP / HTTPS Protocols - Can be use immediately 
                            $fullurl = $url;
                        } else if (preg_match("/^([\w]+:)/m",$url)){
                            //Other Protocols
-                           Yii::log("[Skip] " . $url . " is unsupported protocol.", CLogger::LEVEL_PROFILE, "HTTP.nonHTTP");
+                           Yii::log($url . " is unsupported protocol.", CLogger::LEVEL_PROFILE, "HTTP.nonHTTP.Skip");
                            continue;
+                       } else {
+                           // check Relative URL
+                           $url = preg_replace("/(\/\.\/)/", "/", $url);
+                           $url = preg_replace("/((([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)\/\.\.\/)/", "/", $url);
+                           // remove //
+                           $url = preg_replace("/(\/\/)/", "/", $url);
+                           // Remove Whitespace
+                           $url = preg_replace("/(\s)/", "", $url);
+                           if ($url == ''){ continue;}
+                           if (strpos($url,'/') !== 0){
+                              
+                               $fullurl = $this->baseurl->URI .'/'. $url;
+                           } else {
+                               //TODO: MUST BEGIN IN ROOT DIRECTORY
+                               $fullurl = $this->baseurl->URI . $url;
+                           }
                        }
-                       // check Relative URL
-                       
-                       // Check Absolute URL
                        
                        
                        
-                       if (strpos($url,'/') === 0){
-                           $fullurl = $this->baseurl->URI . $url;
-                       } else if (strpos($url,'://') === false){
-                           $fullurl = $this->baseurl->URI . '/' . $url;
-                           //$fullurl = $this->baseurl->URI  . $url;
-                       }
+                       
+                       
+                       
                        if (in_array($fullurl, $this->completedlist)){
-                           Yii::log("[Skip] " . $url . " already in the traversal list.", CLogger::LEVEL_PROFILE, "HTTP.Verbose");
+                           Yii::log($url . " already in the traversal list.", CLogger::LEVEL_PROFILE, "HTTP.Verbose.Skip");
                            continue;
                        } else {
                            
                            $newURI = new URI();
                            $newURI->URI = $fullurl;
-                           Yii::log("Enqueue: " . $fullurl . "", CLogger::LEVEL_PROFILE, "HTTP.Verbose");
+                           Yii::log($fullurl . "", CLogger::LEVEL_PROFILE, "HTTP.Verbose.Enqueue");
                            array_push($queue,$newURI);
                            array_push($this->completedlist,$fullurl);
                        }
-                      }
-               //} if i > 0
+                 }
            }
-           //ob_flush();
-           
        }
-       
-       
    }
-   
 }
 ?>
