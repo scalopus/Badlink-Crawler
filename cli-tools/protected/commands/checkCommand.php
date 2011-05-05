@@ -14,7 +14,7 @@ Yii::import("application.components.CrawlerService");
 class checkCommand extends CConsoleCommand {
 
     public function run($args){
-        $c = new CrawlerService();
+        $c = new CrawlerService2();
         $c->search($args[0]);
     }
     public function getHelp(){
