@@ -8,12 +8,16 @@
 
 class CrawlerService extends CComponent{
    private $baseurl = '';
-   private $logdirectory = null;
-   public function init(){}
+   protected $httplog = null;
+   protected $servicelog = null;
    public function __construct(){
-       $this->logdirectory = date('YmdHis');
-   }
-
+        if ($this->httplog == null){
+            $this->httplog = new HTTPLogger();
+        }
+        $this->servicelog = new CFileLogRoute();
+        $this->servicelog->setLogPath($this->httplog->logpath);
+        $this->servicelog->init();
+    }
    function getURL($content)
     {
     $urls = null;
@@ -24,22 +28,20 @@ class CrawlerService extends CComponent{
 
    public function search($url){
        //TODO: INPUT Regular Expression
-       $this->init();
        $this->baseurl = $url;
        $queue = new SplQueue();
        $queue->push($this->baseurl);
+       
 $i = 0; //TODO: Remove
-       echo "Create directory : " . $this->logdirectory . "\n";
-       mkdir($this->logdirectory);
+
        // Get Header
        while (!$queue->isEmpty()){
            
            $url = $queue ->pop();
-           //var_dump($url,$this->baseurl);
            
            // Filtering
            if (stripos($url,$this->baseurl)=== false){
-               echo "[SKIPED] " . $url . " is out of scope.\n";
+               $this->servicelog->log("[SKIPED] " . $url . " is out of scope.\n","info");
                continue;
                
            }
@@ -48,15 +50,15 @@ $i = 0; //TODO: Remove
            if (!$header){
                // Logging to Failed log
                 echo "[FAILED] " . $url ."\n";
-               file_put_contents($this->logdirectory . "/failed.txt",$url . "\n",FILE_APPEND);
+                $this->httplog->log('Failed',$url);
                continue;
            }
            if (preg_match("/200 OK/",$header[0])){
                echo "[200] " . $url ."\n";
-               file_put_contents($this->logdirectory . "/200.txt",$url . "\n",FILE_APPEND);
+               $this->httplog->log('200',$url);
            } else {
                echo "[XXX] $header[0] " . $url ."\n";
-               file_put_contents($this->logdirectory . "/other.txt",$url . "\n",FILE_APPEND);
+               $this->httplog->log('XXX',$url);
                continue;
            }
            //var_dump($header);
