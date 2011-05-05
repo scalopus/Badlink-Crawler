@@ -11,7 +11,6 @@
  * @author Warun Kietduriyakul <warun@jomyut.net>
  */
 class TraversalSet {
-    public static $Queue = array();
     public static $CompleteList = array();
     public static function foundInCompleteList($url){
         
