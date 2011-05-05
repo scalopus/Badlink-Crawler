@@ -26,37 +26,26 @@ class CrawlerService extends CComponent{
        
        $this->completedlist += array($url);
        $queue = array($this->baseurl);
-//$i = 0; //TODO: Remove
 
-       // Get Header
        while (!empty($queue)){
            
            $newlink = array_pop($queue);
            // Filtering
            if (stripos($newlink->URI,$this->baseurl->URI)=== false){
-               //Yii::log("[SKIPED] " . $newlink->URI . " is out of scope.\n","info","HTTP");
+               Yii::log("[Skip] " . $url . " is out of scope.", CLogger::LEVEL_PROFILE, "HTTP.Verbose");
                continue;
-               
            }
-           
-           
            if (!$newlink->getHeader()){
-               // Logging to Failed log
-                echo "[FAILED] " . $newlink->URI ."\n";
-                //Yii::log('Failed',$newlink->URI,"info","HTTP");
                 Yii::log($newlink->URI, CLogger::LEVEL_PROFILE, "HTTP.CANNOTCONNECT"); 
                continue;
            }
-           if ($newlink->isOK()){
-               echo "[200] " . $newlink->URI ."\n";
-               //Yii::log('200',$newlink->URI,"info","HTTP");
-               Yii::log($newlink->URI, CLogger::LEVEL_PROFILE, "HTTP.200");
-           } else {
-               echo "[" . $newlink->ReturnCode . "] " . $newlink->URI ."\n";
+           if (!$newlink->isOK()){
                Yii::log($newlink->URI, CLogger::LEVEL_PROFILE, "HTTP.".$newlink->ReturnCode); 
                continue;
+           } else {
+               Yii::log($newlink->URI, CLogger::LEVEL_PROFILE, "HTTP.200");
            }
-           //var_dump($header);
+
            if ($newlink->isText()){
                // Search inside
                $content = file_get_contents($newlink->URI);
@@ -65,7 +54,14 @@ class CrawlerService extends CComponent{
                //if ($i == 1){
                    foreach($urls[4] as $url){
                        // Check Protocols
-                       
+                       if (preg_match("/(http|https)+:\/\//",$url)){
+                           // HTTP / HTTPS Protocols - Can be use immediately 
+                           $fullurl = $url;
+                       } else if (preg_match("/^([\w]+:)/m",$url)){
+                           //Other Protocols
+                           Yii::log("[Skip] " . $url . " is unsupported protocol.", CLogger::LEVEL_PROFILE, "HTTP.nonHTTP");
+                           continue;
+                       }
                        // check Relative URL
                        
                        // Check Absolute URL
@@ -77,29 +73,19 @@ class CrawlerService extends CComponent{
                        } else if (strpos($url,'://') === false){
                            $fullurl = $this->baseurl->URI . '/' . $url;
                            //$fullurl = $this->baseurl->URI  . $url;
-                       } else {
-                           // Check protocol is supported.
-                           if (preg_match("/(http|https)+:\/\//",$url)){
-                            $fullurl = $url;
-                           } else {
-                               echo "[SKIPED] " . $url . " use unsupported protocol.\n";
-                               continue;
-                           }
                        }
                        if (in_array($fullurl, $this->completedlist)){
-                           echo "[SKIPED] " . $url . " is already in the list.\n";
+                           Yii::log("[Skip] " . $url . " already in the traversal list.", CLogger::LEVEL_PROFILE, "HTTP.Verbose");
                            continue;
                        } else {
                            
                            $newURI = new URI();
                            $newURI->URI = $fullurl;
-                           echo "Enqueue: " . $fullurl . "\n";
-                           //$queue->enqueue($newURI);
+                           Yii::log("Enqueue: " . $fullurl . "", CLogger::LEVEL_PROFILE, "HTTP.Verbose");
                            array_push($queue,$newURI);
                            array_push($this->completedlist,$fullurl);
-                           //var_dump($this->completedlist);
                        }
-                       }
+                      }
                //} if i > 0
            }
            //ob_flush();

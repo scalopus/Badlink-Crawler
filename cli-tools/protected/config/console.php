@@ -3,7 +3,7 @@
 return array(
 	'basePath'=>dirname(__FILE__).DIRECTORY_SEPARATOR.'..',
 	'name'=>'Crawler Console',
-        'import' => array('application.components.*','ext.FlushableLogRouter'),
+        'import' => array('application.components.*',"application.components.log.*",'ext.FlushableLogRouter'),
         'preload'=>array('log'),
         'components'=>array(
 		'log'=>array(
@@ -18,6 +18,10 @@ return array(
 				),
                                 array(
                                     'class'=>'HTTPLogRoute',
+                                    'categories'=>'HTTP.*',
+                                ),
+                                array(
+                                    'class'=>'STDOUTLogRoute',
                                     'categories'=>'HTTP.*',
                                 ),
                             ),

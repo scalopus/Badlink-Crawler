@@ -12,7 +12,8 @@ class URI extends CComponent{
     }
     public function getHeader($force = false){
         if ($force || !$this->__readyheader){
-            $this->_header = get_headers($this->_uri,1);
+                $this->_header = get_headers($this->_uri,1);
+            
             if ($this->_header === false){
                 // Cannot get the header;
             } else {
