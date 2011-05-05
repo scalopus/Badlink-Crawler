@@ -5,19 +5,12 @@
  * @author Warun Kietduriyakul <warun@jomyut.net>
  * 
  */
+Yii::import('application.components.URI');
+
 
 class CrawlerService extends CComponent{
    private $baseurl = '';
-   protected $httplog = null;
-   protected $servicelog = null;
-   public function __construct(){
-        if ($this->httplog == null){
-            $this->httplog = new HTTPLogger();
-        }
-        $this->servicelog = new CFileLogRoute();
-        $this->servicelog->setLogPath($this->httplog->logpath);
-        $this->servicelog->init();
-    }
+   
    function getURL($content)
     {
     $urls = null;
@@ -28,7 +21,9 @@ class CrawlerService extends CComponent{
 
    public function search($url){
        //TODO: INPUT Regular Expression
-       $this->baseurl = $url;
+       $this->baseurl = new URI();
+       $this->baseurl->URI = $url;
+       
        $queue = new SplQueue();
        $queue->push($this->baseurl);
        
@@ -37,44 +32,45 @@ $i = 0; //TODO: Remove
        // Get Header
        while (!$queue->isEmpty()){
            
-           $url = $queue ->pop();
+           $newlink = $queue ->pop();
+           
            
            // Filtering
-           if (stripos($url,$this->baseurl)=== false){
-               $this->servicelog->log("[SKIPED] " . $url . " is out of scope.\n","info");
+           if (stripos($newlink->URI,$this->baseurl->URI)=== false){
+               //Yii::log("[SKIPED] " . $newlink->URI . " is out of scope.\n","info","HTTP");
                continue;
                
            }
-           $header = get_headers($url,1);
            
-           if (!$header){
+           
+           if (!$newlink->getHeader()){
                // Logging to Failed log
-                echo "[FAILED] " . $url ."\n";
-                $this->httplog->log('Failed',$url);
+                echo "[FAILED] " . $newlink->URI ."\n";
+                //Yii::log('Failed',$newlink->URI,"info","HTTP");
+                Yii::log($newlink->URI, CLogger::LEVEL_PROFILE, "HTTP.CANNOTCONNECT"); 
                continue;
            }
-           if (preg_match("/200 OK/",$header[0])){
-               echo "[200] " . $url ."\n";
-               $this->httplog->log('200',$url);
+           if ($newlink->isOK()){
+               echo "[200] " . $newlink->URI ."\n";
+               //Yii::log('200',$newlink->URI,"info","HTTP");
+               Yii::log($newlink->URI, CLogger::LEVEL_PROFILE, "HTTP.200");
            } else {
-               echo "[XXX] $header[0] " . $url ."\n";
-               $this->httplog->log('XXX',$url);
+               echo "[" . $newlink->ReturnCode . "] " . $newlink->URI ."\n";
+               Yii::log($newlink->URI, CLogger::LEVEL_PROFILE, "HTTP.".$newlink->ReturnCode); 
                continue;
            }
            //var_dump($header);
-           if (preg_match("/text\/html/",$header['Content-Type'])){
+           if ($newlink->isText()){
                // Search inside
-               $content = file_get_contents($url);
-               //echo htmlentities($content);
+               $content = file_get_contents($newlink->URI);
                $urls = $this->getURL($content);
-               //print_r($urls[4]);
                $i++;
                if ($i == 1){
                    foreach($urls[4] as $url){
                        if (strpos($url,'/') === 0){
-                           $fullurl = $this->baseurl . $url;
+                           $fullurl = $this->baseurl->URI . $url;
                        } else if (strpos($url,'://') === false){
-                           $fullurl = $this->baseurl . '/' . $url;
+                           $fullurl = $this->baseurl->URI . '/' . $url;
                        } else {
                            // Check protocol is supported.
                            if (preg_match("/(http|https)+:\/\//",$url)){
@@ -84,9 +80,10 @@ $i = 0; //TODO: Remove
                                continue;
                            }
                        }
-                       
+                       $newURI = new URI();
+                       $newURI->URI = $fullurl;
                        echo "Enqueue: " . $fullurl . "\n";
-                       $queue->enqueue($fullurl);
+                       $queue->enqueue($newURI);
                        
                        }
                }

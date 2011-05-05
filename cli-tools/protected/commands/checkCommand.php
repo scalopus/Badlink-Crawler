@@ -10,10 +10,10 @@
  *
  * @author Warun Kietduriyakul <warun@jomyut.net>
  */
+Yii::import("application.components.CrawlerService");
 class checkCommand extends CConsoleCommand {
 
     public function run($args){
-        print_r($args);
         $c = new CrawlerService();
         $c->search($args[0]);
     }

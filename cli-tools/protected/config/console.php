@@ -10,11 +10,16 @@ return array(
 			'class'=>'CLogRouter',
 			'routes'=>array(
 				array(
-					'class'=>'CFileLogRoute',
-					//'levels'=>'error, warning',
-                                        //'logPath'=>date('YmdHis'),
+                                    'class'=>'CFileLogRoute',
+                                    //'categories'=>'*',
+                                    //'levels'=>'error, warning',
+                                    //'logPath'=>date('YmdHis'),
 				),
-			),
+                                array(
+                                    'class'=>'HTTPLogRoute',
+                                    'categories'=>'HTTP.*',
+                                ),
+                            ),
 		),
 	),
 );
