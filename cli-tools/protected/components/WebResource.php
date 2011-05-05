@@ -16,11 +16,12 @@ class WebResource extends CComponent {
     private $backlink = null; // Linked List (Back link to this page)
     private $url = null;
     private $depth = false;
-    
+    private $protocol = 'http';
     private $__readyheader = false;
     protected $_header;
     protected $_returncode = null;
-
+    public $supportedprotocols = array('http','https');
+    
     public function getHeader($force = false){
         if ($force || !$this->__readyheader){
                 //$this->_header = get_headers($this->_uri,1);
@@ -86,27 +87,41 @@ class WebResource extends CComponent {
     public function getBaseURL(){
         return $this->url['basedir'];
     }
-    public function setBaseURL($url){
-        // Cut the string to be 3 Phase (Host : Path : QueryString)
-        //$patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)(?<File>(.)+(?=\?))(?<QueryString>(.)+)/";
-        $patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)(?<File>(.)+(?=\?))/";
-        if (preg_match($patterns,$url,$matches)){
-            $this->url['baseurl'] = $matches['Host'] . $matches['Path'] . $matches['File']; // Base URL to current directory include script name (if present)
-            $this->url['basedir'] = $matches['Host'] . $matches['Path'] ; // Base URL directory without script name
-            $this->url['rooturl'] = $matches['Host']; // Root URL
-            return true;
+///    public function setBaseURL($url){
+//        // Cut the string to be 3 Phase (Host : Path : QueryString)
+//        //$patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)(?<File>(.)+(?=\?))(?<QueryString>(.)+)/";
+//        $patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)(?<File>(.)+(?=\?))/";
+//        if (preg_match($patterns,$url,$matches)){
+//            $this->url['baseurl'] = $matches['Host'] . $matches['Path'] . $matches['File']; // Base URL to current directory include script name (if present)
+//            $this->url['basedir'] = $matches['Host'] . $matches['Path'] ; // Base URL directory without script name
+//            $this->url['rooturl'] = $matches['Host']; // Root URL
+//            return true;
+//        }
+//        $patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)/";
+//        if (preg_match($patterns,$url,$matches)){
+//            $this->url['baseurl'] = $matches['Host'] . $matches['Path'] ; // Base URL to current directory include script name (if present)
+//            $this->url['basedir'] = $matches['Host'] . $matches['Path'] ; // Base URL directory without script name
+//            $this->url['rooturl'] = $matches['Host']; // Root URL
+//            return true;
+//        } else {
+//            $this->url['baseurl'] = $url;
+//            $this->url['basedir'] = $url;
+//            $this->url['rooturl']= $url;
+//        }
+        public function setBaseURL($url){
+            $patterns = '/(?<Root>((http|https)(:\/\/))((.)+?(?=[\/\?]|$)))(?<Path>(.)+(?=[\/]))?(?<Filename>(.)+?(?=[#\?]|$))?/';
+            if (preg_match($patterns,$url,$matches)){
+                $path = isset($matches['Path'])?$matches['Path']:'';
+                $filename = isset($matches['Filename'])?$matches['Filename']:'';
+                $this->url['baseurl'] = $matches['Root'] . $path . $filename; // Base URL to current directory include script name (if present)
+                $this->url['basedir'] = $matches['Root'] . $path ; // Base URL directory without script name
+                $this->url['rooturl'] = $matches['Root'];           // Root URL
+                return $this->url;
+            }
         }
-        $patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)/";
-        if (preg_match($patterns,$url,$matches)){
-            $this->url['baseurl'] = $matches['Host'] . $matches['Path'] ; // Base URL to current directory include script name (if present)
-            $this->url['basedir'] = $matches['Host'] . $matches['Path'] ; // Base URL directory without script name
-            $this->url['rooturl'] = $matches['Host']; // Root URL
-            return true;
-        } else {
-            $this->url['baseurl'] = $url;
-            $this->url['basedir'] = $url;
-            $this->url['rooturl']= $url;
-        }
+        
+    public function getResourceURL(){
+        return $this->url['resource'];
     }
     /**
      * This function use to merge the Priority URL to the BaseURL. 
@@ -122,35 +137,64 @@ class WebResource extends CComponent {
         
        
         //$patterns = '/^((?<Protocol>[\w]+:)?\/\/)?((?<Username>[\d\w]|%[a-fA-f\d]{2,2})+(:(?<Password>[\d\w]|%[a-fA-f\d]{2,2})+)?@)?(?<Host>[\d\w][-\d\w]{0,253}[\d\w]\.)+[\w]{2,4}(?<Port>:[\d]+)?(?<Directory>\/([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)*(?<QueryString>\?(&amp;?([-+_~.\d\w]|%[a-fA-f\d]{2,2})=?)*)?(#([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)?$/';
-        $patterns = '/^(((?<Protocol>[\w]+):)?\/\/)?/';
+        $patterns = '/^((?<Protocol>[\w]+):)/';
         $matches = null;
         preg_match($patterns,$url,$matches);
         if (isset($matches['Protocol'])){
             $this->url['resource'] = $url;
-        } else {
-           $url = preg_replace("/(\/\.\/)/", "/", $url);
-           $url = preg_replace("/((([-+_~.\d\w]|%[a-fA-f\d]{2,2})*)\/\.\.\/)/", "/", $url);
-           // remove //
-           $url = preg_replace("/(\/\/)/", "/", $url);
-           // Remove Whitespace
-           $url = preg_replace("/(\s)/", "", $url);
+            $this->protocol = $matches['Protocol'];
+            return $this->url['resource'];
+        } 
+        
+        // Remove until it is the same
+        do {
+            $old = $url;
+            $url = preg_replace('/((([-+_~.\d\w]|%[a-fA-f\d]{2,2})+)\/\.\.\/)/', '/', $url); // /ABC/../ -> /
+            $change = (strcmp($old,$url)==0)? false:true;
+        } while($change);
+        
+        // Remove first ../
+//        do {
+//            $old = $url;
+//            $url = preg_replace('/(\/\.\.\/)+/', '/', $url);
+//            $change = (strcmp($old,$url)==0)? false:true;
+//        } while($change);
+        $url = preg_replace('/(\/\.\.\/)+/', '/', $url);
+        $url = preg_replace('/(\.\/)+/', '/', $url);
 
-            if (strpos($url,'/') === 0){
-                $this->url['resource'] = $this->url['rooturl'] . $url;
-            } else {
-                $this->url['resource'] = $this->url['basedir'] . $url;
-            }
+       // remove //
+       $url = preg_replace('/([\/]{2,})/', '/', $url);
+       // Remove Whitespace
+       $url = preg_replace('/(\s)/', '', $url);
+
+        if (strpos($url,'/') === 0){
+            $this->url['resource'] = $this->url['rooturl'] . $url;
+        } else {
+            $this->url['resource'] = $this->url['basedir'] .'/'. $url;
         }
+
         return $this->url['resource'];
     }
 
     public function isInBaseURL(){
         return (strpos($this->url['resource'],$this->url['basedir']) !== false)? true:false;
     }
+    public function isSupportedProtocol(){
+        foreach ($this->supportedprotocols as $p){
+            if ($this->protocol == $p) return true;
+        }
+        return false;
+        
+    }
     public function checkResource(){
+        if (!$this->isSupportedProtocol()){
+           Yii::log($this->url['resource'] . "\tRef: " . $this->backlink->ResourceURL, CLogger::LEVEL_PROFILE, "HTTP.Skip.Unsupported");
+           return; 
+        }
+
         // Check Traversal Set
         if (in_array($this->url['resource'],TraversalSet::$CompleteList)){
-           Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.Verbose.Skip.Duplicate");
+           Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.Skip.Duplicated");
            return;
         }
         // Add to Traversal Set
@@ -158,12 +202,12 @@ class WebResource extends CComponent {
         
         // Read Header
         if (!$this->getHeader()){
-           Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.Failed"); 
+           Yii::log($this->url['resource']."\tRef: " . $this->backlink->ResourceURL, CLogger::LEVEL_PROFILE, "HTTP.Failed"); 
            return;
         }
         // Check Response Code
         if (!$this->isOK()){
-           Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.".$this->ReturnCode); 
+           Yii::log($this->url['resource'] . "\tRef: " . $this->backlink->ResourceURL, CLogger::LEVEL_PROFILE, "HTTP.".$this->ReturnCode); 
            return;
         } else {
                Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.200");
