@@ -27,10 +27,10 @@ class HTTPLogRoute extends CFileLogRoute{
         }
     	protected function formatLogMessage($message,$level,$category,$time)
 	{
-            return "$message\n";
+            return "$message";
 	}
         public function log($code,$message){
-            file_put_contents($this->_logPath . "/" . $code . ".log",$message . "\n",FILE_APPEND);
+            file_put_contents($this->_logPath . "/" . $code . ".log",$message,FILE_APPEND);
         }
         	protected function processLogs($logs)
 	{

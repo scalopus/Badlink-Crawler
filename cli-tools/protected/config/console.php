@@ -3,11 +3,12 @@
 return array(
 	'basePath'=>dirname(__FILE__).DIRECTORY_SEPARATOR.'..',
 	'name'=>'Crawler Console',
-        'import' => array('application.components.*'),
+        'import' => array('application.components.*','ext.FlushableLogRouter'),
         'preload'=>array('log'),
         'components'=>array(
 		'log'=>array(
-			'class'=>'CLogRouter',
+			'class'=>'FlushableLogRouter',
+                        'autoFlush' => 1,
 			'routes'=>array(
 				array(
                                     'class'=>'CFileLogRoute',

@@ -7,13 +7,11 @@
  * @author Warun Kietduriyakul <warun@jomyut.net>
  */
 class URIDataSet implements ArrayAccess {
-    private $container = array();
+    private $container;
+    
+    
     public function __construct() {
-        $this->container = array(
-            "one"   => 1,
-            "two"   => 2,
-            "three" => 3,
-        );
+        $this->container = new ArrayObject();
     }
     public function offsetSet($offset, $value) {
         $this->container[$offset] = $value;

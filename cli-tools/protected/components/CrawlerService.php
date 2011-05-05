@@ -10,11 +10,11 @@ Yii::import('application.components.URI');
 
 class CrawlerService extends CComponent{
    private $baseurl = '';
-   
+   private $completedlist = array();
    function getURL($content)
     {
     $urls = null;
-    $pattern = "/((src|href|background|cite|longdesc|profile)=(\"|\'))(\S*?)(?=\"|\')/m";
+    $pattern = "/((src|href|background|cite|longdesc|profile)=(\"|\'))(\S*?)(?=\"|\'|#)/m";
     preg_match_all($pattern, $content,$urls);
     return $urls;
     }
@@ -24,17 +24,14 @@ class CrawlerService extends CComponent{
        $this->baseurl = new URI();
        $this->baseurl->URI = $url;
        
-       $queue = new SplQueue();
-       $queue->push($this->baseurl);
-       
-$i = 0; //TODO: Remove
+       $this->completedlist += array($url);
+       $queue = array($this->baseurl);
+//$i = 0; //TODO: Remove
 
        // Get Header
-       while (!$queue->isEmpty()){
+       while (!empty($queue)){
            
-           $newlink = $queue ->pop();
-           
-           
+           $newlink = array_pop($queue);
            // Filtering
            if (stripos($newlink->URI,$this->baseurl->URI)=== false){
                //Yii::log("[SKIPED] " . $newlink->URI . " is out of scope.\n","info","HTTP");
@@ -64,13 +61,22 @@ $i = 0; //TODO: Remove
                // Search inside
                $content = file_get_contents($newlink->URI);
                $urls = $this->getURL($content);
-               $i++;
-               if ($i == 1){
+               //$i++;
+               //if ($i == 1){
                    foreach($urls[4] as $url){
+                       // Check Protocols
+                       
+                       // check Relative URL
+                       
+                       // Check Absolute URL
+                       
+                       
+                       
                        if (strpos($url,'/') === 0){
                            $fullurl = $this->baseurl->URI . $url;
                        } else if (strpos($url,'://') === false){
                            $fullurl = $this->baseurl->URI . '/' . $url;
+                           //$fullurl = $this->baseurl->URI  . $url;
                        } else {
                            // Check protocol is supported.
                            if (preg_match("/(http|https)+:\/\//",$url)){
@@ -80,13 +86,21 @@ $i = 0; //TODO: Remove
                                continue;
                            }
                        }
-                       $newURI = new URI();
-                       $newURI->URI = $fullurl;
-                       echo "Enqueue: " . $fullurl . "\n";
-                       $queue->enqueue($newURI);
-                       
+                       if (in_array($fullurl, $this->completedlist)){
+                           echo "[SKIPED] " . $url . " is already in the list.\n";
+                           continue;
+                       } else {
+                           
+                           $newURI = new URI();
+                           $newURI->URI = $fullurl;
+                           echo "Enqueue: " . $fullurl . "\n";
+                           //$queue->enqueue($newURI);
+                           array_push($queue,$newURI);
+                           array_push($this->completedlist,$fullurl);
+                           //var_dump($this->completedlist);
                        }
-               }
+                       }
+               //} if i > 0
            }
            //ob_flush();
            
