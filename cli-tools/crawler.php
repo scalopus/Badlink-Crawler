@@ -7,7 +7,10 @@ $config=dirname(__FILE__).'/protected/config/console.php';
 defined('YII_DEBUG') or define('YII_DEBUG',true);
 // specify how many levels of call stack should be shown in each log message
 defined('YII_TRACE_LEVEL') or define('YII_TRACE_LEVEL',3);
+
+
 set_time_limit(0);
+ini_set('memory_limit','1G');
 
 require_once($yii);
 Yii::createConsoleApplication($config)->run();

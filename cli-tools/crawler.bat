@@ -5,6 +5,6 @@ set YII_PATH=%~dp0
 
 if "%PHP_COMMAND%" == "" set PHP_COMMAND=php.exe
 
-%PHP_COMMAND% "%YII_PATH%cralwer.php" %*
+%PHP_COMMAND% "%YII_PATH%crawler.php" %*
 
 @endlocal
