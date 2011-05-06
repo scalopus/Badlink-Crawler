@@ -1,12 +1,7 @@
 <?php
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
- * Description of CrawlerService2
+ * Crawler Adapter for All Web/CLI Interface
  *
  * @author Warun Kietduriyakul <warun@jomyut.net>
  */

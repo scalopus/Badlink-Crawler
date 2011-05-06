@@ -1,13 +1,9 @@
 <?php
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
- * Description of Webpage
+ * WebResource
  *
+ * 
  * @author Warun Kietduriyakul <warun@jomyut.net>
  */
 class WebResource extends CComponent {
@@ -22,7 +18,12 @@ class WebResource extends CComponent {
     protected $_returncode = null;
     public $supportedprotocols = array('http','https');
     public $traversalcode = array('200','301','302');
-    
+    /**
+     * Retrieve by HEAD operation of this Resource URL
+     * 
+     * @param Boolean $force
+     * @return Array<String>
+     */
     public function getHeader($force = false){
         if ($force || !$this->__readyheader){
                 //$this->_header = get_headers($this->_uri,1);
@@ -66,13 +67,28 @@ class WebResource extends CComponent {
         }
         return $this->_header;
     }
+    /**
+     * Check HTTP Response from Header
+     * 
+     * @return Boolean True if HTTP response code is 200 
+     */
     public function isOK(){
         return (preg_match("/200 OK/",$this->header[0]))? true:false;
     }
+    /**
+     * Check if the current Resource URI  is Text format
+     * 
+     * @return Boolean true if the Web Resource represent like text format (check by Mimetype)
+     */
     public function isText(){
         if (!isset($this->header['Content-Type'])) {return false;}
         return (preg_match("/text\/html/",$this->header['Content-Type']))? true:false;
     }
+    /**
+     * get the http response code from header.
+     * 
+     * @return Integer HTTP Reponse Code
+     */
     public function getReturnCode(){
         if (!$this->__readyheader){$this->getHeader();}
         return $this->_returncode;
@@ -143,11 +159,6 @@ class WebResource extends CComponent {
         } while($change);
         
         // Remove first ../
-//        do {
-//            $old = $url;
-//            $url = preg_replace('/(\/\.\.\/)+/', '/', $url);
-//            $change = (strcmp($old,$url)==0)? false:true;
-//        } while($change);
         $url = preg_replace('/(\/\.\.\/)+/', '/', $url);
         $url = preg_replace('/(\.\/)+/', '/', $url);
 
@@ -164,11 +175,19 @@ class WebResource extends CComponent {
 
         return $this->url['resource'];
     }
-
+    /**
+     * Check if the Web Resource is present in the Base URL
+     * @return Boolean 
+     */
     public function isInBaseURL(){
         
         return (substr_compare($this->url['basedir'],$this->url['resource'],0,strlen($this->url['basedir'])) === 0)? true:false;
     }
+    /**
+     * Check that the protocol can be handled. This method will be call that it can be perform / retrieve the content.
+     * 
+     * @return Boolean 
+     */
     public function isSupportedProtocol(){
         foreach ($this->supportedprotocols as $p){
             if ($this->protocol == $p) return true;
@@ -176,6 +195,10 @@ class WebResource extends CComponent {
         return false;
         
     }
+    /**
+     * Check if the Web Resource has the HTTP return code that can be traversal / retrieve the content.
+     * @return Boolean
+     */
     public function needToTraversal(){
         foreach ($this->traversalcode as $f){
             //echo "CMP: " . $this->_returncode."\t\t" .$f."\n";
@@ -238,16 +261,26 @@ class WebResource extends CComponent {
         }
         $this->goSearch();
     }
+    /**
+     * Performing Recursive for any links present in the Web Resource
+     */
     protected function goSearch(){
         foreach ($this->link as $l){
             $l->checkResource();
         }
     }
 
-
+    /**
+     * Download the Web Resource content
+     */
     protected function loadContent(){
         $this->content = file_get_contents($this->url['resource']);
     }
+    /**
+     * Search for any represent link in the Web Resource context
+     * 
+     * @return Array<Webresource>
+     */
     public function searchLinkInContext(){
         if ($this->content == null){$this->loadContent();}
         
