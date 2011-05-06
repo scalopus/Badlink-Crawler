@@ -1,19 +1,20 @@
 <?php
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
- * Description of checkCommand
+ * Traversal Command
+ * 
+ * This is command line interface to the Crawler service.
+ * 
  *
  * @author Warun Kietduriyakul <warun@jomyut.net>
  */
-Yii::import("application.components.CrawlerService");
-class checkCommand extends CConsoleCommand {
+
+class traversalCommand extends CConsoleCommand {
 
     public function run($args){
+        if (count($args) <= 0){
+            echo $this->getHelp(); return;
+        }
         $c = new CrawlerService2();
         $c->search($args[0]);
     }

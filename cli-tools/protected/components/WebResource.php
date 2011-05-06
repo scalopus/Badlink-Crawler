@@ -21,6 +21,7 @@ class WebResource extends CComponent {
     protected $_header;
     protected $_returncode = null;
     public $supportedprotocols = array('http','https');
+    public $traversalcode = array('200','301','302');
     
     public function getHeader($force = false){
         if ($force || !$this->__readyheader){
@@ -32,6 +33,7 @@ class WebResource extends CComponent {
                 curl_setopt($ch, CURLOPT_URL, $this->url['resource']);
                 curl_setopt($ch, CURLOPT_HEADER, 1);
                 curl_setopt($ch,CURLOPT_NOBODY,1);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
                 curl_setopt ( $ch , CURLOPT_RETURNTRANSFER , 1 );
 
                 // grab URL and pass it to the browser
@@ -83,42 +85,29 @@ class WebResource extends CComponent {
     public function __construct($backlink =null,$depth=false){
         $this->backlink = $backlink; //WebResource Object.
         $this->depth = $depth;
+        if ($backlink == null){
+            $b = new WebResource('Root Initialized');
+            $b->setBaseURL("");
+            $b->setResourceURL("This is entry script");
+            $this->backlink = $b;
+        }
     }
     public function getBaseURL(){
         return $this->url['basedir'];
     }
-///    public function setBaseURL($url){
-//        // Cut the string to be 3 Phase (Host : Path : QueryString)
-//        //$patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)(?<File>(.)+(?=\?))(?<QueryString>(.)+)/";
-//        $patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)(?<File>(.)+(?=\?))/";
-//        if (preg_match($patterns,$url,$matches)){
-//            $this->url['baseurl'] = $matches['Host'] . $matches['Path'] . $matches['File']; // Base URL to current directory include script name (if present)
-//            $this->url['basedir'] = $matches['Host'] . $matches['Path'] ; // Base URL directory without script name
-//            $this->url['rooturl'] = $matches['Host']; // Root URL
-//            return true;
-//        }
-//        $patterns = "/(?<Host>(http|https):\/\/(.)+?)(?=\/)(?<Path>(.)+\/)/";
-//        if (preg_match($patterns,$url,$matches)){
-//            $this->url['baseurl'] = $matches['Host'] . $matches['Path'] ; // Base URL to current directory include script name (if present)
-//            $this->url['basedir'] = $matches['Host'] . $matches['Path'] ; // Base URL directory without script name
-//            $this->url['rooturl'] = $matches['Host']; // Root URL
-//            return true;
-//        } else {
-//            $this->url['baseurl'] = $url;
-//            $this->url['basedir'] = $url;
-//            $this->url['rooturl']= $url;
-//        }
-        public function setBaseURL($url){
-            $patterns = '/(?<Root>((http|https)(:\/\/))((.)+?(?=[\/\?]|$)))(?<Path>(.)+(?=[\/]))?(?<Filename>(.)+?(?=[#\?]|$))?/';
-            if (preg_match($patterns,$url,$matches)){
-                $path = isset($matches['Path'])?$matches['Path']:'';
-                $filename = isset($matches['Filename'])?$matches['Filename']:'';
-                $this->url['baseurl'] = $matches['Root'] . $path . $filename; // Base URL to current directory include script name (if present)
-                $this->url['basedir'] = $matches['Root'] . $path ; // Base URL directory without script name
-                $this->url['rooturl'] = $matches['Root'];           // Root URL
-                return $this->url;
-            }
+    public function setBaseURL($url){
+        $patterns = '/(?<Root>((http|https)(:\/\/))((.)+?(?=[\/\?]|$)))(?<Path>(.)+(?=[\/]))?(?<Filename>(.)+?(?=[#\?]|$))?/';
+        if (preg_match($patterns,$url,$matches)){
+            $path = isset($matches['Path'])?$matches['Path']:'';
+            $filename = isset($matches['Filename'])?$matches['Filename']:'';
+            $this->url['baseurl'] = $matches['Root'] . $path . $filename; // Base URL to current directory include script name (if present)
+            $this->url['basedir'] = $matches['Root'] . $path ; // Base URL directory without script name
+            $this->url['rooturl'] = $matches['Root'];           // Root URL
+            return $this->url;
+        } else {
+            $this->url['basedir'] = $url; // For Initialized Script
         }
+    }
         
     public function getResourceURL(){
         return $this->url['resource'];
@@ -177,7 +166,8 @@ class WebResource extends CComponent {
     }
 
     public function isInBaseURL(){
-        return (strpos($this->url['resource'],$this->url['basedir']) !== false)? true:false;
+        
+        return (substr_compare($this->url['basedir'],$this->url['resource'],0,strlen($this->url['basedir'])) === 0)? true:false;
     }
     public function isSupportedProtocol(){
         foreach ($this->supportedprotocols as $p){
@@ -186,16 +176,23 @@ class WebResource extends CComponent {
         return false;
         
     }
+    public function needToTraversal(){
+        foreach ($this->traversalcode as $f){
+            //echo "CMP: " . $this->_returncode."\t\t" .$f."\n";
+            if (strcmp($this->_returncode,$f) === 0){ return true;}
+        }
+        return false;
+    }
     public function checkResource(){
         if (!$this->isSupportedProtocol()){
            Yii::log($this->url['resource'] . "\tRef: " . $this->backlink->ResourceURL, CLogger::LEVEL_PROFILE, "HTTP.Skip.Unsupported");
-           return; 
+           return; // Not supported protocol
         }
 
         // Check Traversal Set
         if (in_array($this->url['resource'],TraversalSet::$CompleteList)){
            Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.Skip.Duplicated");
-           return;
+           return; // Already in Traversal Set
         }
         // Add to Traversal Set
         array_push(TraversalSet::$CompleteList,$this->url['resource']);
@@ -203,27 +200,42 @@ class WebResource extends CComponent {
         // Read Header
         if (!$this->getHeader()){
            Yii::log($this->url['resource']."\tRef: " . $this->backlink->ResourceURL, CLogger::LEVEL_PROFILE, "HTTP.Failed"); 
-           return;
+           return; // Problem Occurs
         }
         // Check Response Code
         if (!$this->isOK()){
            Yii::log($this->url['resource'] . "\tRef: " . $this->backlink->ResourceURL, CLogger::LEVEL_PROFILE, "HTTP.".$this->ReturnCode); 
-           return;
         } else {
                Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.200");
         }
+        if ($this->needToTraversal()){
+            if ($this->_returncode == '301' || $this->_returncode == '302'){
+                $newlocation = trim($this->header['Location']);
+                Yii::log($newlocation . "\tRef: " . $this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.".$this->ReturnCode .".Follow"); 
+                $newlink = new WebResource($this,($this->depth + 1));
+                $newlink->BaseURL = $this->BaseURL;
+                $newlink->ResourceURL =$newlocation;
+                array_push($this->link, $newlink);
+            }
+            // Check External Link
+            if (!$this->isInBaseURL()){
+                Yii::log($this->url['resource'], CLogger::LEVEL_PROFILE, "HTTP.Endscope");
+                return;
+            }
+        } else {
+            return;
+        }
         // Check Content-type
-        if (!$this->isText()){
-            return;
+
+        if ($this->isText()){
+            
+            
+            // Read Content
+            //echo "Loading URL: " . $this->ResourceURL . "HTTP Code: " . $this->getReturnCode();
+            $this->loadContent();
+            // Search any link in context.
+            $this->searchLinkInContext();
         }
-        // Check External Link
-        if (!$this->isInBaseURL()){
-            return;
-        }
-        // Read Content
-        $this->loadContent();
-        // Search any link in context.
-        $this->searchLinkInContext();
         $this->goSearch();
     }
     protected function goSearch(){
@@ -231,18 +243,17 @@ class WebResource extends CComponent {
             $l->checkResource();
         }
     }
-    
-    protected function fixBaseDir($directory){
-   
-    }
+
+
     protected function loadContent(){
         $this->content = file_get_contents($this->url['resource']);
     }
-    protected function searchLinkInContext(){
+    public function searchLinkInContext(){
+        if ($this->content == null){$this->loadContent();}
+        
         $urls = null;
         $pattern = "/((src|href|background|cite|longdesc|profile)=(\"|\'))(?<Link>\S*?)(?=\"|\'|#)/m";
         preg_match_all($pattern, $this->content,$urls);
-        //var_dump($urls['Link']);exit();
         foreach ($urls['Link'] as $url){
             $newlink = new WebResource($this,($this->depth + 1));
             $newlink->BaseURL = $this->BaseURL;
